@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đấu Robot – School Rooms</title>
+<style>
+:root{--bg:#f4f7ff;--card:#fff;--tx:#1d2540;--mut:#6a7391;--pri:#4f6bff;--ok:#27ae60;--bad:#e74c3c;--bd:#dde3f7}
+@media (prefers-color-scheme:dark){:root{--bg:#141829;--card:#1f2540;--tx:#eef1ff;--mut:#9aa3c7;--bd:#2f3760}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;justify-content:center}
+main{width:100%;max-width:720px;padding:16px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.stars{font-weight:700;font-size:20px;background:var(--card);border:1px solid var(--bd);border-radius:999px;padding:6px 14px}
+.tabs button{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:999px;padding:8px 14px;font-size:15px;cursor:pointer;margin-left:6px}
+.tabs button.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+.arena{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.fighter{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:12px;text-align:center}
+.fighter .face{font-size:56px}
+.hit{animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.bar{height:12px;border-radius:6px;background:var(--bd);overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--bad);transition:width .3s}
+.hearts{font-size:22px;min-height:30px;margin-top:4px}
+.q{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px;text-align:center}
+.big{font-size:64px;line-height:1.1}
+.sent{font-size:26px;font-weight:700;margin:6px 0}
+.sub{color:var(--mut);margin:4px 0 12px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opts button{font-size:22px;padding:16px 8px;border-radius:14px;border:2px solid var(--bd);background:var(--bg);color:var(--tx);cursor:pointer}
+.opts button.pic{font-size:44px}
+.opts button:hover{border-color:var(--pri)}
+.opts button.right{background:var(--ok);color:#fff;border-color:var(--ok)}
+.opts button.wrong{background:var(--bad);color:#fff;border-color:var(--bad)}
+.say{border:0;background:none;font-size:28px;cursor:pointer}
+.msg{min-height:28px;font-weight:700;margin-top:10px}
+.cta{background:var(--pri);color:#fff;border:0;border-radius:14px;padding:14px 28px;font-size:20px;cursor:pointer;margin-top:10px}
+.shop{display:grid;gap:10px}
+.item{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px}
+.item .ic{font-size:36px}.item .nm{flex:1;font-weight:600}
+.item button{border:0;border-radius:10px;padding:10px 14px;background:var(--pri);color:#fff;font-size:16px;cursor:pointer}
+.item button:disabled{background:var(--bd);color:var(--mut);cursor:not-allowed}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div class="stars">⭐ <span id="stars">0</span></div>
+    <div class="tabs"><button id="tG" class="on">⚔️ Đấu</button><button id="tS">🎁 Đổi quà</button></div>
+  </div>
+
+  <section id="game">
+    <div class="arena">
+      <div class="fighter" id="me"><div class="face">🧒</div><b>Bé</b><div class="hearts" id="hearts"></div></div>
+      <div class="fighter" id="bot"><div class="face">🤖</div><b>Robot</b><div class="bar"><i id="hp" style="width:100%"></i></div></div>
+    </div>
+    <div class="q" id="box">
+      <div class="big">🏫</div>
+      <div class="sent">School Rooms Battle</div>
+      <div class="sub">Trả lời đúng để đánh Robot. Thắng được thưởng thêm ⭐!</div>
+      <button class="cta" id="start">▶ Bắt đầu</button>
+    </div>
+  </section>
+
+  <section id="shopView" class="hidden"><div class="shop" id="shop"></div></section>
+</main>
+
+<!-- File dữ liệu: phải nằm cùng thư mục với index.html -->
+<script src="word.js"></script>
+<script>
+var stars=0,hp=BOSS,lives=LIVES,cur=null,locked=false;
+try{stars=parseInt(localStorage.getItem('srb_stars')||'0',10)||0}catch(e){}
+var $=function(i){return document.getElementById(i)};
+function save(){try{localStorage.setItem('srb_stars',String(stars))}catch(e){}}
+function sh(a){return a.slice().sort(function(){return Math.random()-.5})}
+function pick(){return ROOMS[Math.floor(Math.random()*ROOMS.length)]}
+function speak(t){try{var u=new SpeechSynthesisUtterance(t);u.lang='en-US';u.rate=.85;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
+
+function makeQ(){
+  var r=pick(),t=Math.floor(Math.random()*5);
+  if(t===0)return{say:r.w,big:r.e,sub:'What room is it?',opts:ROOMS.map(function(x){return{l:x.w,ok:x===r}})};
+  if(t===1)return{say:r.w,sent:r.w,sub:'Choose the correct picture',pic:1,opts:ROOMS.map(function(x){return{l:x.e,ok:x===r}})};
+  if(t===2)return{say:'This is our '+r.w,big:r.e,sent:'This is our ____.',sub:'Choose the correct option',opts:ROOMS.map(function(x){return{l:x.w,ok:x===r}})};
+  if(t===3)return{say:"Let's go to the "+r.w+". OK, let's go.",big:r.e,sent:"Let's go to the ____.",sub:'Choose the correct option',opts:ROOMS.map(function(x){return{l:x.w,ok:x===r}})};
+  var our=Math.random()<.5;
+  return{say:(our?'We are in the ':'They are in the ')+r.w+'. This is '+(our?'our ':'their ')+r.w,big:(our?'👧👦':'🧑‍🤝‍🧑'),
+    sent:(our?'We are in the ':'They are in the ')+r.w+'. This is ____ '+r.w+'.',sub:'our or their?',opts:[{l:'our',ok:our},{l:'their',ok:!our}]};
+}
+
+function drawHearts(){var s='';for(var i=0;i<LIVES;i++)s+=i<lives?'❤️':'🖤';$('hearts').textContent=s}
+function drawStars(){$('stars').textContent=stars;renderShop()}
+function newGame(){hp=BOSS;lives=LIVES;$('hp').style.width='100%';drawHearts();next()}
+
+function next(){
+  locked=false;cur=makeQ();var o=sh(cur.opts),h='';
+  if(cur.big)h+='<div class="big">'+cur.big+'</div>';
+  if(cur.sent)h+='<div class="sent">'+cur.sent+'</div>';
+  h+='<div class="sub">'+cur.sub+' <button class="say" id="sp" title="Nghe">🔊</button></div><div class="opts">';
+  o.forEach(function(x,i){h+='<button data-i="'+i+'" class="'+(cur.pic?'pic':'')+'">'+x.l+'</button>'});
+  h+='</div><div class="msg" id="msg"></div>';
+  $('box').innerHTML=h;cur.shown=o;
+  $('sp').onclick=function(){speak(cur.say)};
+  var bs=$('box').querySelectorAll('.opts button');
+  bs.forEach(function(b){b.onclick=function(){answer(b,bs)}});
+}
+
+function fx(id){var el=$(id);el.classList.remove('hit');void el.offsetWidth;el.classList.add('hit')}
+function answer(b,bs){
+  if(locked)return;locked=true;var x=cur.shown[+b.dataset.i];
+  if(x.ok){
+    b.classList.add('right');stars++;hp--;save();$('stars').textContent=stars;
+    $('hp').style.width=(hp/BOSS*100)+'%';fx('bot');$('msg').textContent='✅ Đúng rồi! +1 ⭐';speak(cur.say);
+  }else{
+    b.classList.add('wrong');lives--;drawHearts();fx('me');$('msg').textContent='❌ Chưa đúng!';
+    bs.forEach(function(k,i){if(cur.shown[i].ok)k.classList.add('right')});
+  }
+  setTimeout(function(){
+    if(hp<=0){stars+=WIN_BONUS;save();drawStars();end(true)}
+    else if(lives<=0)end(false);
+    else next();
+  },1300);
+}
+function end(win){
+  $('box').innerHTML='<div class="big">'+(win?'🏆':'💪')+'</div><div class="sent">'+(win?'Bé thắng Robot! +'+WIN_BONUS+' ⭐':'Robot thắng rồi!')+'</div><div class="sub">'+(win?'Qua tab "Đổi quà" để nhận thưởng nhé.':'Không sao, đấu lại nào!')+'</div><button class="cta" id="again">🔁 Chơi lại</button>';
+  $('again').onclick=newGame;
+}
+
+function renderShop(){
+  var h='';
+  REWARDS.forEach(function(r,i){
+    h+='<div class="item"><div class="ic">'+r.e+'</div><div class="nm">'+r.n+'<div class="sub" style="margin:0">'+r.c+' ⭐</div></div><button data-r="'+i+'" '+(stars<r.c?'disabled':'')+'>Đổi</button></div>';
+  });
+  $('shop').innerHTML=h;
+  $('shop').querySelectorAll('button').forEach(function(b){
+    b.onclick=function(){var r=REWARDS[+b.dataset.r];if(stars>=r.c){stars-=r.c;save();drawStars();alert('🎉 Đã đổi: '+r.n)}};
+  });
+}
+function tab(g){$('game').classList.toggle('hidden',!g);$('shopView').classList.toggle('hidden',g);$('tG').classList.toggle('on',g);$('tS').classList.toggle('on',!g)}
+$('tG').onclick=function(){tab(true)};$('tS').onclick=function(){tab(false)};
+$('start').onclick=newGame;
+drawHearts();drawStars();
+</script>
+</body>
+</html>
